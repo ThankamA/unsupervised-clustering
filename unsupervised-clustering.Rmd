@@ -1,0 +1,210 @@
+---
+title: 'Statistical Data Mining: Hierarchical Clustering, Silhouette Plots, PCA, K-means Clustering
+  with Gap Statistics'
+author: "Thankam Abish"
+date: "March 18, 2020"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r echo = T, results = 'hide', message=FALSE, warning=FALSE}
+library("multtest")
+library("fpc")
+library("cluster")
+library("bootcluster")
+```
+
+### US Arrests Data
+#### Part (a) Hierarchical Clustering on states with euclidean and complete linkage (3 clusters)
+```{r}
+data(USArrests)
+arrests <- USArrests
+set.seed(12353)
+
+distance <- dist(arrests, method = "euclidean")
+hc <- hclust(distance, method = "complete")
+x11()
+plot(hc, hang = -1, labels = row.names(arrests))
+
+rect.hclust(hc, k=3, border="red")
+ct <- cutree(hc, h=140)
+cluster_1 <- names(ct[ct == 1]) 
+cluster_2 <- names(ct[ct == 2]) 
+cluster_3 <- names(ct[ct == 3])
+```
+
+#### Part (b) Same as (a) but with std dev 1
+
+```{r}
+arrests_scaled <- scale(arrests)
+distance <- dist(arrests_scaled, method = "euclidean")
+hc_scaled <- hclust(distance, method = "complete")
+x11()
+plot(hc_scaled, hang = -1, labels = row.names(arrests_scaled))
+```
+
+### Protein Data
+#### Part (a) Plots for different linkages
+
+```{r}
+ex2 <- read.csv("Ch10Ex11.csv", header = FALSE)
+distance <-  as.dist(1 - cor(ex2))
+x11()
+plot(hclust(distance, method = "complete"))
+x11()
+plot(hclust(distance, method = "single"))
+x11()
+plot(hclust(distance, method = "average"))
+```
+
+#### Part (b) Find which genes differ the most by utilizing PCA
+
+```{r}
+output <-  prcomp(t(ex2))
+load <-  apply(output$rotation, 1, sum)
+idx <-  order(abs(load), decreasing = TRUE)
+idx[1:10]
+```
+
+### Seeds Data: Hierarchical Clustering
+
+```{r}
+data <- read.delim("seeds.txt")
+data_x <- data[1:7]
+distance <- dist(data_x, method = "euclidean")
+hc1 <- hclust(distance, method = "complete")
+hc2 <- hclust(distance, method = "single")
+hc3 <- hclust(distance, method = "average")
+
+store <- c()
+k <- c()
+for (i in 2:8){
+  k <- c(k, i)
+  ct <- cutree(hc1, k=i)
+  si <- silhouette(ct, dist = distance)
+  avg_width <- summary(si)$avg.width
+  store <- c(store, avg_width)
+}
+store
+
+store2 <- c()
+for (i in 2:8){
+  ct <- cutree(hc2, k=i)
+  si <- silhouette(ct, dist = distance)
+  avg_width <- summary(si)$avg.width
+  store2 <- c(store2, avg_width)
+}
+store2
+
+store3 <- c()
+for (i in 2:8){
+  ct <- cutree(hc3, k=i)
+  si <- silhouette(ct, dist = distance)
+  avg_width <- summary(si)$avg.width
+  store3 <- c(store3, avg_width)
+}
+store3
+
+x11()
+plot(k, store, main = 'Average Silhouttes for Different k Values and Linkages',xlab = 'k value', ylab = 'Average Silhouettes',type = 'o', col = 'blue',ylim=c(-0.5,0.7), lty = 1)
+points(k, store2, col="purple", pch="x")
+lines(k, store2, col="purple", lty = 2)
+points(k, store3, col="red", pch="+")
+lines(k, store3, col="red", lty = 3)
+legend(2, -.15,legend=c("complete","single","average"), col=c("blue","purple","red"),
+       pch=c("o","x","+"),lty=c(1,2,3), ncol=1)
+```
+
+#### Create 2 clusters
+
+```{r}
+## 2 Clusters cut
+ct1 <- cutree(hc1, k=2)
+si1 <- silhouette(ct1, dist = distance)
+ct2 <- cutree(hc2, k=2)
+si2 <- silhouette(ct2, dist = distance)
+ct3 <- cutree(hc3, k=2)
+si3 <- silhouette(ct3, dist = distance)
+
+## Plots with 2 clusters
+x11()
+plot(si1, col = 2:3)
+x11()
+plot(si2, col = 2:3)
+x11()
+plot(si3, col = 2:3)
+```
+
+#### Create 3 clusters
+
+```{r}
+ct1 <- cutree(hc1, k=3)
+si1 <- silhouette(ct1, dist = distance)
+ct2 <- cutree(hc2, k=3)
+si2 <- silhouette(ct2, dist = distance)
+ct3 <- cutree(hc3, k=3)
+si3 <- silhouette(ct3, dist = distance)
+
+x11()
+plot(si1, col = 2:4)
+x11()
+plot(si2, col = 2:4)
+x11()
+plot(si3, col = 2:4)
+```
+
+#### Plots of seed data clustering with different linkages
+
+```{r}
+idx <- sample(c(1:length(data[,1])), 70)
+data <- data[idx, ]
+data_x <- data[1:7]
+distance <- dist(data_x, method = "euclidean")
+hc1 <- hclust(distance, method = "complete")
+hc2 <- hclust(distance, method = "single")
+hc3 <- hclust(distance, method = "average")
+
+x11()
+plot(hc1, hang = -1, labels = data$Seed.Group)
+rect.hclust(hc1, k=3, border="red")
+x11()
+plot(hc2, hang = -1, labels = data$Seed.Group) ## Not great
+rect.hclust(hc2, k=2, border="blue")
+x11()
+plot(hc3, hang = -1, labels = data$Seed.Group)
+rect.hclust(hc3, k=3, border="green")
+
+ct1 <- cutree(hc1, k = 3)
+ct2 <- cutree(hc2, k = 3)
+ct3 <- cutree(hc3, k = 3)
+
+table(ct1, data$Seed.Group)
+table(ct2, data$Seed.Group)
+table(ct3, data$Seed.Group)
+```
+
+### Seed Data: K-means Clustering
+
+```{r}
+####  Part (b) Kmeans Clustering
+
+##  gap statistics - kmeans
+gap_kmeans <- clusGap(data_x, kmeans, nstart = 20, K.max = 10, B = 100)
+x11()
+plot(gap_kmeans, main = "Gap Statistic: kmeans")
+
+## kmeans
+data_x <- scale(data_x)
+km <- kmeans(data_x, centers = 3, nstart = 10)
+x11()
+plot(data_x[ ,c("Length.Kernel", "Width.Kernel")], col = km$cluster, main = "Example: k-means")
+points(km$centers[, c("Length.Kernel", "Width.Kernel")], col = 1:3, pch = 8, cex = 2)
+
+##  how well does the clustering match the labels
+table(km$cluster, data$Seed.Group)
+length(km$cluster)
+length(data$Seed.Group)
+
+```
+
